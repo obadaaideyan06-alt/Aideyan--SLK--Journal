@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#080c12"/>
+<title>Aideyan's SLK Journal</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#080c12;color:#e8eaf0;font-family:'Inter',system-ui,sans-serif;min-height:100vh;}
+input,select,textarea,button{font-family:inherit;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(167,139,250,0.3);border-radius:3px;}
+input:focus,select:focus,textarea:focus{border-color:rgba(167,139,250,0.5)!important;outline:none;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes fadein{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.fadein{animation:fadein .25s ease;}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.5);}
+select option{background:#111827;color:#e8eaf0;}
+</style>
+
+<meta name="application-name" content="Aideyan SLK Journal"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="SLK Journal"/>
+<link rel="manifest" id="pwa-manifest"/>
+<style>
+#pwa-install-banner{display:none;position:fixed;bottom:0;left:0;right:0;z-index:99999;background:linear-gradient(135deg,#1a1040,#0d0820);border-top:1px solid rgba(167,139,250,0.4);padding:16px 20px;box-shadow:0 -8px 32px rgba(0,0,0,0.6);}
+#pwa-install-banner .pwa-inner{max-width:500px;margin:0 auto;display:flex;align-items:center;gap:14px;}
+#pwa-install-banner .pwa-icon{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#fff;font-family:monospace;flex-shrink:0;box-shadow:0 0 16px rgba(167,139,250,0.5);}
+#pwa-install-banner .pwa-text{flex:1;}
+#pwa-install-banner .pwa-title{font-size:14px;font-weight:700;color:#e8eaf0;margin-bottom:2px;}
+#pwa-install-banner .pwa-sub{font-size:12px;color:#a0aec0;}
+#pwa-install-banner .pwa-btn{background:linear-gradient(135deg,#a78bfa,#7c3aed);border:none;color:#fff;border-radius:10px;padding:11px 20px;font-weight:700;font-family:monospace;font-size:13px;cursor:pointer;white-space:nowrap;letter-spacing:.04em;}
+#pwa-install-banner .pwa-dismiss{background:transparent;border:none;color:#6b7a99;font-size:20px;cursor:pointer;padding:4px 8px;line-height:1;}
+#pwa-offline-bar{display:none;position:fixed;top:0;left:0;right:0;z-index:99998;background:#f6ad55;color:#1a1200;font-size:12px;font-family:monospace;font-weight:700;text-align:center;padding:6px;letter-spacing:.05em;}
+#pwa-splash{position:fixed;inset:0;background:#080c12;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .4s ease;}
+#pwa-splash.hidden{opacity:0;pointer-events:none;}
+</style>
+</head>
+<body>
+
+<!-- Splash screen -->
+<div id="pwa-splash">
+  <div style="width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:900;color:#fff;font-family:monospace;box-shadow:0 0 40px rgba(167,139,250,0.5);margin-bottom:20px">A</div>
+  <div style="font-family:monospace;font-weight:800;font-size:18px;color:#e8eaf0;letter-spacing:.08em;margin-bottom:6px">AIDEYAN'S JOURNAL</div>
+  <div style="font-size:12px;color:#6b7a99;font-family:monospace;letter-spacing:.05em">SLK — Structure · Liquidity · Key Levels</div>
+  <div style="margin-top:32px;width:36px;height:36px;border-radius:50%;border:3px solid rgba(167,139,250,0.2);border-top:3px solid #a78bfa;animation:spin .8s linear infinite"></div>
+</div>
+
+<!-- Offline bar -->
+<div id="pwa-offline-bar">⚠ You are offline — trades still save locally</div>
+
+<!-- Install banner -->
+<div id="pwa-install-banner">
+  <div class="pwa-inner">
+    <div class="pwa-icon">A</div>
+    <div class="pwa-text">
+      <div class="pwa-title">Install Aideyan's SLK Journal</div>
+      <div class="pwa-sub">Add to home screen for instant access like a real app</div>
+    </div>
+    <button class="pwa-btn" onclick="pwaInstall()">Install</button>
+    <button class="pwa-dismiss" onclick="pwaDismiss()">✕</button>
+  </div>
+</div>
+
+<div id="app"></div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────
+const TRADER_NAME="Aideyan";
+const JOURNAL_TITLE="AIDEYAN'S JOURNAL";
+const CONCEPT="SLK — Structure · Liquidity · Key Levels";
+const STORAGE_KEY="slk-journal-v3";
+const API_KEY=""; // Leave blank — handled by Claude artifact context; for standalone use add your Anthropic key here
+
+const FOREX_MAJORS=["EUR/USD","GBP/USD","USD/JPY","AUD/USD","USD/CAD","NZD/USD","USD/CHF"];
+const FOREX_MINORS=["EUR/GBP","EUR/JPY","EUR/AUD","EUR/CAD","EUR/CHF","EUR/NZD","GBP/JPY","GBP/AUD","GBP/CAD","GBP/CHF","GBP/NZD","AUD/JPY","AUD/CAD","AUD/CHF","AUD/NZD","CAD/JPY","CAD/CHF","NZD/JPY","NZD/CAD","NZD/CHF","CHF/JPY"];
+const FOREX_EXOTICS=["USD/ZAR","USD/NGN","USD/KES","USD/GHS","USD/TRY","USD/MXN","USD/SGD","USD/HKD","USD/SEK","USD/NOK","USD/DKK","USD/PLN","USD/HUF","USD/CZK","EUR/ZAR","EUR/TRY","GBP/ZAR","USD/CNH","USD/INR","USD/BRL","USD/ARS","USD/CLP","USD/THB","USD/IDR"];
+const CRYPTO_PAIRS=["BTC/USD","ETH/USD","SOL/USD","XRP/USD","BNB/USD","AVAX/USD","DOGE/USD","ADA/USD","MATIC/USD","DOT/USD","LINK/USD","LTC/USD","BCH/USD","UNI/USD","ATOM/USD","FIL/USD","APT/USD","ARB/USD","OP/USD","SUI/USD","BTC/USDT","ETH/USDT","SOL/USDT","XRP/USDT","BNB/USDT","ETH/BTC","SOL/BTC","XRP/BTC"];
+const SYNTHETIC_INDICES=["Volatility 10 Index","Volatility 25 Index","Volatility 50 Index","Volatility 75 Index","Volatility 100 Index","Volatility 10 (1s) Index","Volatility 25 (1s) Index","Volatility 50 (1s) Index","Volatility 75 (1s) Index","Volatility 100 (1s) Index","Boom 300 Index","Boom 500 Index","Boom 1000 Index","Crash 300 Index","Crash 500 Index","Crash 1000 Index","Step Index","Range Break 100 Index","Range Break 200 Index","Jump 10 Index","Jump 25 Index","Jump 50 Index","Jump 75 Index","Jump 100 Index","DEX 600 UP Index","DEX 900 UP Index","DEX 600 DOWN Index","DEX 900 DOWN Index"];
+const PAIR_GROUPS=[{label:"Forex — Majors",pairs:FOREX_MAJORS},{label:"Forex — Minors",pairs:FOREX_MINORS},{label:"Forex — Exotics",pairs:FOREX_EXOTICS},{label:"Crypto",pairs:CRYPTO_PAIRS},{label:"Synthetic Indices",pairs:SYNTHETIC_INDICES}];
+const ALL_PAIRS=[...FOREX_MAJORS,...FOREX_MINORS,...FOREX_EXOTICS,...CRYPTO_PAIRS,...SYNTHETIC_INDICES];
+
+const ENTRY_SETUPS=[
+  {value:"QM Entry with Liquidity",icon:"◈",desc:"Queen's Mark entry confluent with a liquidity grab"},
+  {value:"QMR Entry with Liquidity",icon:"◉",desc:"Queen's Mark Reversal entry confluent with liquidity"},
+  {value:"A-Shape Entry with Liquidity",icon:"▲",desc:"A-shaped resistance key level entry with liquidity sweep"},
+  {value:"V-Shape Entry with Liquidity",icon:"▽",desc:"V-shaped support key level entry with liquidity sweep"},
+  {value:"OCL Entry with Liquidity",icon:"◧",desc:"Open-Close Level entry confluent with liquidity"},
+  {value:"Disrespected OCL with Liquidity",icon:"⚡",desc:"OCL disrespected, re-tested with liquidity present"},
+  {value:"Disrespected OCL without Liquidity",icon:"✦",desc:"OCL disrespected, re-tested without liquidity"},
+];
+const TIMEFRAMES=["Monthly","Weekly","Daily","4H","3H","2H","1H","45min","30min","15min","5min"];
+const SESSIONS=["London","New York","Tokyo","Sydney","London/NY Overlap","Tokyo/London Overlap"];
+const EMOTIONS=[
+  {emoji:"🎯",label:"Focused",color:"#63b3ed"},
+  {emoji:"😎",label:"Confident",color:"#68d391"},
+  {emoji:"😐",label:"Neutral",color:"#a0aec0"},
+  {emoji:"😰",label:"Anxious",color:"#f6ad55"},
+  {emoji:"😤",label:"Frustrated",color:"#fc8181"},
+  {emoji:"🤑",label:"Greedy",color:"#f6e05e"},
+  {emoji:"😴",label:"Tired",color:"#b794f4"},
+];
+const RESULTS=["Win","Loss","Break Even","Running"];
+
+// ── STATE ─────────────────────────────────────────────────────────
+let trades=[];
+let currentView="dashboard";
+let currentForm=emptyTrade();
+let editingId=null;
+let selectedTradeId=null;
+let aiFeedback="";
+let aiLoading=false;
+let analysis="";
+let analysisLoading=false;
+let toast={msg:"",type:"info"};
+let toastTimer=null;
+let filterPair="All";
+let filterResult="All";
+let filterSetup="All";
+let pairSearch="";
+let showPairDrop=false;
+let lightboxSrc=null;
+
+function emptyTrade(){
+  return{id:null,date:new Date().toISOString().slice(0,10),pair:"EUR/USD",direction:"Long",session:"London",htfTimeframe:"Daily",entryTimeframe:"1H",entrySetup:ENTRY_SETUPS[0].value,entryPrice:"",exitPrice:"",lotSize:"",stopLoss:"",takeProfit:"",pnl:"",rrRisk:"",rrActual:"",emotion:"Focused",result:"Running",rationale:"",mistakes:"",lessons:"",tags:"",daysHeld:"",tradeManagement:"",setupImages:[],beforeImage:null,afterImage:null,mt5Image:null};
+}
+
+// ── STORAGE ───────────────────────────────────────────────────────
+function loadTrades(){
+  try{const s=localStorage.getItem(STORAGE_KEY);if(s)trades=JSON.parse(s);}catch(e){}
+}
+function saveTrades(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(trades));}catch(e){showToast("Storage full — images may not save. Consider exporting.","error");}
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────
+function greet(){const h=new Date().getHours();return h<12?"Good morning":h<17?"Good afternoon":"Good evening";}
+function fmtMoney(n){return n>=0?`+$${Math.abs(n).toFixed(2)}`:`-$${Math.abs(n).toFixed(2)}`;}
+function todayStr(){return new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"});}
+
+function calcPnL(t){
+  const entry=parseFloat(t.entryPrice),exit=parseFloat(t.exitPrice),lot=parseFloat(t.lotSize),sl=parseFloat(t.stopLoss),tp=parseFloat(t.takeProfit);
+  if(!entry||!lot)return{pnl:"",rrRisk:"",rrActual:""};
+  const isCrypto=CRYPTO_PAIRS.includes(t.pair),isSynth=SYNTHETIC_INDICES.includes(t.pair),pipVal=t.pair.includes("JPY")?0.01:0.0001;
+  let pnl="";
+  if(exit){const diff=t.direction==="Long"?exit-entry:entry-exit;pnl=(isCrypto||isSynth?diff*lot:(diff/pipVal)*10*lot).toFixed(2);}
+  let rrRisk="",rrActual="";
+  if(sl){const slD=Math.abs(entry-sl);if(tp)rrRisk=(Math.abs(tp-entry)/slD).toFixed(2);if(exit)rrActual=(Math.abs(exit-entry)/slD).toFixed(2);}
+  return{pnl,rrRisk,rrActual};
+}
+
+function fileToB64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file);});}
+
+function showToast(msg,type="info"){
+  toast={msg,type};
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{toast={msg:"",type:"info"};render();},3000);
+  render();
+}
+
+function setupColor(v){return v.includes("A-Shape")?"#fc8181":v.includes("V-Shape")?"#68d391":v.includes("Disrespected")?"#f6ad55":"#a78bfa";}
+function setupIcon(v){const s=ENTRY_SETUPS.find(e=>e.value===v);return s?s.icon:"◈";}
+
+// ── STATS ─────────────────────────────────────────────────────────
+function getStats(){
+  const closed=trades.filter(t=>t.result!=="Running"&&t.pnl!=="");
+  const totalPnl=closed.reduce((a,t)=>a+parseFloat(t.pnl||0),0);
+  const wins=closed.filter(t=>t.result==="Win"||parseFloat(t.pnl)>0);
+  const losses=closed.filter(t=>t.result==="Loss"||parseFloat(t.pnl)<0);
+  const winRate=closed.length?Math.round(wins.length/closed.length*100):0;
+  const avgWin=wins.length?wins.reduce((a,t)=>a+parseFloat(t.pnl),0)/wins.length:0;
+  const avgLoss=losses.length?losses.reduce((a,t)=>a+parseFloat(t.pnl),0)/losses.length:0;
+  const rrRatio=avgLoss!==0?Math.abs(avgWin/avgLoss).toFixed(2):"—";
+  const rrs=trades.filter(t=>t.rrRisk);
+  const avgRRPlan=rrs.length?(rrs.reduce((a,t)=>a+parseFloat(t.rrRisk),0)/rrs.length).toFixed(2):"—";
+  let streak=0;for(const t of trades){if(t.result==="Win")streak++;else break;}
+  return{closed,totalPnl,wins,losses,winRate,avgWin,avgLoss,rrRatio,avgRRPlan,streak};
+}
+
+// ── NOTION EXPORT ─────────────────────────────────────────────────
+function exportToNotion(){
+  if(!trades.length){showToast("No trades to export.","error");return;}
+  const lines=[`# ${JOURNAL_TITLE}`,`> ${CONCEPT} | Exported ${new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}`,"","---",""];
+  trades.forEach((t,i)=>{
+    lines.push(`## Trade ${i+1} — ${t.pair} ${t.direction} | ${t.date}`,"");
+    lines.push(`| Field | Value |`,`|---|---|`,`| Pair | ${t.pair} |`,`| Direction | ${t.direction} |`,`| Date | ${t.date} |`,`| Session | ${t.session} |`,`| Entry Setup | ${t.entrySetup} |`,`| HTF Timeframe | ${t.htfTimeframe} |`,`| Entry Timeframe | ${t.entryTimeframe} |`,`| Entry Price | ${t.entryPrice||"—"} |`,`| Exit Price | ${t.exitPrice||"Running"} |`,`| Lot Size | ${t.lotSize||"—"} |`,`| Stop Loss | ${t.stopLoss||"—"} |`,`| Take Profit | ${t.takeProfit||"—"} |`,`| Planned R:R | ${t.rrRisk||"—"} |`,`| Actual R:R | ${t.rrActual||"—"} |`,`| P&L | ${t.pnl?fmtMoney(parseFloat(t.pnl)):"—"} |`,`| Result | ${t.result} |`,`| Days Held | ${t.daysHeld||"—"} |`,`| Emotion | ${t.emotion} |`,"");
+    if(t.rationale){lines.push(`**Rationale:** ${t.rationale}`,"");}
+    if(t.tradeManagement){lines.push(`**Trade Management:** ${t.tradeManagement}`,"");}
+    if(t.mistakes){lines.push(`**Mistakes:** ${t.mistakes}`,"");}
+    if(t.lessons){lines.push(`**Lessons:** ${t.lessons}`,"");}
+    if(t.tags){lines.push(`**Tags:** ${t.tags}`,"");}
+    lines.push("---","");
+  });
+  const blob=new Blob([lines.join("\n")],{type:"text/markdown;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=`Aideyan-SLK-Journal-${new Date().toISOString().slice(0,10)}.md`;a.click();URL.revokeObjectURL(url);
+  showToast("Exported! Import the .md file into Notion.","success");
+}
+
+// ── AI FEEDBACK ───────────────────────────────────────────────────
+async function getAIFeedback(trade){
+  const prompt=`You are an elite trading coach specialising in the SLK concept (Structure, Liquidity, Key Levels). Your student is a swing trader named Aideyan who holds trades for days.
+
+Aideyan's Entry Setup Types:
+- QM Entry with Liquidity: Queen's Mark entry confluent with a liquidity grab
+- QMR Entry with Liquidity: Queen's Mark Reversal confluent with liquidity
+- A-Shape Entry with Liquidity: A-shaped resistance key level with liquidity sweep
+- V-Shape Entry with Liquidity: V-shaped support key level with liquidity sweep
+- OCL Entry with Liquidity: Open-Close Level entry with liquidity
+- Disrespected OCL with Liquidity: OCL disrespected, re-tested with liquidity
+- Disrespected OCL without Liquidity: OCL disrespected, re-tested without liquidity
+
+Trade:
+Pair: ${trade.pair} | Direction: ${trade.direction} | Session: ${trade.session}
+HTF TF: ${trade.htfTimeframe} | Entry TF: ${trade.entryTimeframe}
+Entry Setup: ${trade.entrySetup}
+Entry: ${trade.entryPrice} | Exit: ${trade.exitPrice||"Running"} | Lot: ${trade.lotSize}
+SL: ${trade.stopLoss||"N/A"} | TP: ${trade.takeProfit||"N/A"}
+Planned R:R: ${trade.rrRisk||"N/A"} | Actual R:R: ${trade.rrActual||"N/A"} | P&L: ${trade.pnl?"$"+trade.pnl:"N/A"}
+Result: ${trade.result} | Days Held: ${trade.daysHeld||"N/A"}
+Emotion: ${trade.emotion}
+Rationale: ${trade.rationale||"None"}
+Trade Management: ${trade.tradeManagement||"None"}
+Mistakes: ${trade.mistakes||"None"}
+Lessons: ${trade.lessons||"None"}
+
+Feedback sections:
+## SLK Entry Setup Quality
+## Structure & Liquidity Read
+## Swing Trade Management
+## Emotional Discipline
+## One Priority Focus
+
+Direct, bullet points, reference Aideyan once. Under 350 words.`;
+
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-calls":"true"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,messages:[{role:"user",content:prompt}]})});
+    const data=await res.json();
+    return data.content?.map(c=>c.text||"").join("\n")||"No feedback returned.";
+  }catch(e){return"AI feedback unavailable in standalone mode. Open this journal inside Claude.ai for AI coaching.";}
+}
+
+async function getAnalysis(){
+  const summary=trades.slice(0,40).map(t=>`${t.date}|${t.pair} ${t.direction}|Setup:${t.entrySetup}|HTF:${t.htfTimeframe}|Entry:${t.entryTimeframe}|Emotion:${t.emotion}|RR-Plan:${t.rrRisk||"?"}|RR-Act:${t.rrActual||"?"}|P&L:${t.pnl?"$"+t.pnl:"?"}|Result:${t.result}|Days:${t.daysHeld||"?"}|Mistakes:${t.mistakes||"-"}`).join("\n");
+  const prompt=`You are an elite trading coach reviewing Aideyan's complete SLK swing trading journal. He holds trades for days. Deep, honest, actionable analysis.\n\n# Aideyan's Journal (${trades.length} trades, up to 40 shown)\n${summary}\n\nAnalyse with:\n# Performance Summary\n## Best & Worst Entry Setups\n## Emotional Correlation with P&L\n## Swing Trade Management Assessment\n## SLK Execution Patterns\n## Top 3 Priority Improvements\n## What Is Working — Protect These Habits\n\nSpecific, reference actual setups and pairs. Direct.`;
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-calls":"true"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,messages:[{role:"user",content:prompt}]})});
+    const data=await res.json();
+    return data.content?.map(c=>c.text||"").join("\n")||"Analysis unavailable.";
+  }catch(e){return"AI analysis unavailable in standalone mode. Open this journal inside Claude.ai for full AI analysis.";}
+}
+
+// ── RENDER HELPERS ────────────────────────────────────────────────
+function renderMd(text){
+  if(!text)return"";
+  return text
+    .replace(/\*\*(.+?)\*\*/g,'<strong style="color:#e8eaf0">$1</strong>')
+    .replace(/^### (.+)$/gm,'<div style="font-size:13px;font-weight:700;color:#a78bfa;margin:16px 0 5px;letter-spacing:.05em;text-transform:uppercase">$1</div>')
+    .replace(/^## (.+)$/gm,'<div style="font-size:15px;font-weight:700;color:#e8eaf0;margin:18px 0 7px">$1</div>')
+    .replace(/^# (.+)$/gm,'<div style="font-size:17px;font-weight:800;color:#e8eaf0;margin:18px 0 9px">$1</div>')
+    .replace(/^- (.+)$/gm,'<div style="display:flex;gap:8px;margin:5px 0;color:#c8d0e0"><span style="color:#a78bfa;flex-shrink:0">▸</span><span>$1</span></div>')
+    .replace(/\n/g,'<br/>');
+}
+
+function badge(text,color,bg){return`<span style="background:${bg||color+'18'};color:${color};border:1px solid ${color}33;border-radius:20px;padding:2px 10px;font-size:11px;font-family:monospace;white-space:nowrap">${text}</span>`;}
+function setupBadge(v){const s=ENTRY_SETUPS.find(e=>e.value===v);const col=setupColor(v);return s?badge(`${s.icon} ${v}`,col):""; }
+function resultColor(r){return r==="Win"?"#68d391":r==="Loss"?"#fc8181":r==="Break Even"?"#f6ad55":"#6b7a99";}
+
+function statCard(label,value,sub,color,glow){
+  return`<div style="background:linear-gradient(135deg,rgba(167,139,250,0.06),rgba(255,255,255,0.02));border:1px solid ${glow?"rgba(167,139,250,0.35)":"rgba(255,255,255,0.07)"};border-radius:14px;padding:16px 18px;flex:1 1 130px;box-shadow:${glow?"0 0 24px rgba(167,139,250,0.1)":"none"}">
+    <div style="font-size:10px;color:#6b7a99;font-family:monospace;letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px">${label}</div>
+    <div style="font-size:22px;font-weight:800;color:${color||"#e8eaf0"};font-family:monospace">${value}</div>
+    ${sub?`<div style="font-size:11px;color:#6b7a99;margin-top:3px;font-family:monospace">${sub}</div>`:""}
+  </div>`;
+}
+
+function sectionBox(title,content){
+  return`<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:20px;margin-bottom:14px">
+    <div style="font-size:11px;color:#a78bfa;font-family:monospace;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;font-weight:700">${title}</div>
+    ${content}
+  </div>`;
+}
+
+// ── IMAGE ZONE HTML ───────────────────────────────────────────────
+function imgZoneHtml(id,label,hint,accent,imageDataUrl){
+  if(imageDataUrl){
+    return`<div style="position:relative;border-radius:12px;overflow:hidden;border:1px solid ${accent}40">
+      <img src="${imageDataUrl}" style="width:100%;display:block;max-height:260px;object-fit:contain;background:#0a0f18;cursor:zoom-in" onclick="openLightbox('${id}')"/>
+      <div style="position:absolute;top:8px;left:10px;background:rgba(0,0,0,0.75);border-radius:6px;padding:3px 10px;font-size:10px;font-family:monospace;color:${accent};text-transform:uppercase;letter-spacing:.08em">${label}</div>
+      <button onclick="removeImg('${id}')" style="position:absolute;top:8px;right:10px;background:rgba(252,129,129,0.15);border:1px solid rgba(252,129,129,0.4);color:#fc8181;border-radius:6px;padding:3px 10px;font-size:11px;font-family:monospace;cursor:pointer">Remove</button>
+    </div>`;
+  }
+  return`<label style="border:2px dashed rgba(255,255,255,0.1);border-radius:12px;padding:22px 14px;text-align:center;cursor:pointer;background:rgba(255,255,255,0.02);display:block;transition:border-color .15s" onmouseover="this.style.borderColor='${accent}'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'">
+    <input type="file" accept="image/*" style="display:none" onchange="handleImgFile(event,'${id}')"/>
+    <div style="font-size:26px;margin-bottom:7px">📷</div>
+    <div style="font-size:13px;font-weight:600;color:#a0aec0;margin-bottom:3px">${label}</div>
+    <div style="font-size:11px;color:#6b7a99">${hint}</div>
+    <div style="font-size:11px;color:#6b7a99;margin-top:3px">Tap to open Gallery · Drag & Drop</div>
+  </label>`;
+}
+
+function setupImagesHtml(){
+  const imgs=currentForm.setupImages;
+  let html="";
+  if(imgs.length){
+    html+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:10px">`;
+    imgs.forEach((img,i)=>{
+      html+=`<div style="border:1px solid rgba(99,179,237,0.25);border-radius:10px;overflow:hidden;background:#0a0f18">
+        <div style="position:relative">
+          <img src="${img.dataUrl}" style="width:100%;max-height:180px;object-fit:contain;display:block;cursor:zoom-in" onclick="openSetupLightbox(${i})"/>
+          <div style="position:absolute;top:5px;left:7px;background:rgba(0,0,0,0.7);border-radius:4px;padding:2px 7px;font-size:10px;font-family:monospace;color:#63b3ed">Screenshot ${i+1}</div>
+          <button onclick="removeSetupImg(${i})" style="position:absolute;top:5px;right:7px;background:rgba(252,129,129,0.15);border:1px solid rgba(252,129,129,0.4);color:#fc8181;border-radius:4px;padding:2px 7px;font-size:10px;font-family:monospace;cursor:pointer">✕</button>
+        </div>
+        <input type="text" placeholder="Caption (optional)…" value="${img.caption||""}" onchange="updateSetupCaption(${i},this.value)" style="width:100%;background:transparent;border:none;border-top:1px solid rgba(255,255,255,0.06);padding:7px 9px;color:#a0aec0;font-size:12px;font-family:monospace;outline:none"/>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+  html+=`<label style="border:2px dashed rgba(255,255,255,0.1);border-radius:12px;padding:${imgs.length?"12px":"22px 14px"};text-align:center;cursor:pointer;background:rgba(255,255,255,0.02);display:block" onmouseover="this.style.borderColor='#63b3ed'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'">
+    <input type="file" accept="image/*" multiple style="display:none" onchange="handleSetupFiles(event)"/>
+    ${imgs.length
+      ?`<div style="font-size:12px;color:#6b7a99;font-family:monospace">+ Add another screenshot · Tap Gallery</div>`
+      :`<div style="font-size:26px;margin-bottom:7px">🖼️</div><div style="font-size:13px;font-weight:600;color:#a0aec0;margin-bottom:3px">Setup Formation Screenshots</div><div style="font-size:11px;color:#6b7a99">Multiple screenshots as the setup formed</div><div style="font-size:11px;color:#6b7a99;margin-top:3px">Tap to open Gallery · Drag & Drop</div>`}
+  </label>`;
+  return html;
+}
+
+// ── IMAGE EVENTS ──────────────────────────────────────────────────
+async function handleImgFile(e,id){
+  const f=e.target.files[0];if(!f)return;
+  const d=await fileToB64(f);
+  if(id==="beforeImage")currentForm.beforeImage=d;
+  else if(id==="afterImage")currentForm.afterImage=d;
+  else if(id==="mt5Image")currentForm.mt5Image=d;
+  render();
+}
+function removeImg(id){
+  if(id==="beforeImage")currentForm.beforeImage=null;
+  else if(id==="afterImage")currentForm.afterImage=null;
+  else if(id==="mt5Image")currentForm.mt5Image=null;
+  render();
+}
+async function handleSetupFiles(e){
+  for(const f of e.target.files){
+    if(!f.type.startsWith("image/"))continue;
+    const d=await fileToB64(f);
+    currentForm.setupImages.push({dataUrl:d,caption:""});
+  }
+  render();
+}
+function removeSetupImg(i){currentForm.setupImages.splice(i,1);render();}
+function updateSetupCaption(i,v){currentForm.setupImages[i].caption=v;}
+function openLightbox(id){
+  lightboxSrc=id==="beforeImage"?currentForm.beforeImage:id==="afterImage"?currentForm.afterImage:currentForm.mt5Image;
+  render();
+}
+function openSetupLightbox(i){lightboxSrc=currentForm.setupImages[i]?.dataUrl;render();}
+function openTradeLightbox(src){lightboxSrc=src;render();}
+function closeLightbox(){lightboxSrc=null;render();}
+
+// ── FORM EVENTS ───────────────────────────────────────────────────
+function setField(k,v){
+  currentForm[k]=v;
+  const{pnl,rrRisk,rrActual}=calcPnL(currentForm);
+  currentForm.pnl=pnl;currentForm.rrRisk=rrRisk;currentForm.rrActual=rrActual;
+  render();
+}
+function setDirection(d){setField("direction",d);}
+function setEmotion(l){setField("emotion",l);}
+function setSetup(v){setField("entrySetup",v);}
+function setPair(p){currentForm.pair=p;pairSearch="";showPairDrop=false;const{pnl,rrRisk,rrActual}=calcPnL(currentForm);currentForm.pnl=pnl;currentForm.rrRisk=rrRisk;currentForm.rrActual=rrActual;render();}
+function onPairSearch(v){pairSearch=v;showPairDrop=true;render();}
+function togglePairDrop(){showPairDrop=!showPairDrop;render();}
+function hidePairDrop(){setTimeout(()=>{showPairDrop=false;render();},180);}
+
+async function submitTrade(){
+  if(!currentForm.pair||!currentForm.entryPrice||!currentForm.date){showToast("Fill in Date, Pair and Entry Price.","error");return;}
+  const trade={...currentForm,setupImages:[...currentForm.setupImages],id:editingId||Date.now()};
+  if(editingId){trades=trades.map(t=>t.id===editingId?trade:t);}else{trades=[trade,...trades];}
+  saveTrades();
+  editingId=null;
+  aiFeedback="";
+  aiLoading=true;
+  currentView="dashboard";
+  currentForm=emptyTrade();
+  showToast(editingId?"Trade updated.":"Trade saved — AI feedback loading…","success");
+  render();
+  const fb=await getAIFeedback(trade);
+  aiFeedback=fb;aiLoading=false;render();
+}
+
+function editTrade(id){
+  const t=trades.find(t=>t.id===id);if(!t)return;
+  currentForm={...t,setupImages:[...(t.setupImages||[])],beforeImage:t.beforeImage||null,afterImage:t.afterImage||null,mt5Image:t.mt5Image||null};
+  editingId=id;currentView="log";selectedTradeId=null;render();
+}
+function deleteTrade(id){
+  if(!confirm("Delete this trade?"))return;
+  trades=trades.filter(t=>t.id!==id);saveTrades();selectedTradeId=null;render();showToast("Trade deleted.");
+}
+function cancelLog(){currentForm=emptyTrade();editingId=null;currentView="dashboard";render();}
+function viewTrade(id){selectedTradeId=id;currentView="history";render();}
+function backToHistory(){selectedTradeId=null;render();}
+
+async function runAnalysis(){
+  if(trades.length<2){showToast("Log at least 2 trades first.","error");return;}
+  analysisLoading=true;analysis="";currentView="analysis";render();
+  analysis=await getAnalysis();
+  analysisLoading=false;render();
+}
+
+function setView(v){currentView=v;selectedTradeId=null;render();}
+
+// ── RENDER ────────────────────────────────────────────────────────
+function render(){
+  const app=document.getElementById("app");
+  const st=getStats();
+  const filtered=trades.filter(t=>(filterPair==="All"||t.pair===filterPair)&&(filterResult==="All"||t.result===filterResult)&&(filterSetup==="All"||t.entrySetup===filterSetup));
+
+  // input style
+  const inp=`background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:9px;padding:10px 12px;color:#e8eaf0;font-size:13px;font-family:monospace;width:100%;box-sizing:border-box;`;
+  const lbl=`font-size:10px;color:#6b7a99;font-family:monospace;letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;display:block;`;
+
+  // LIGHTBOX
+  const lbHtml=lightboxSrc?`<div onclick="closeLightbox()" style="position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out">
+    <img src="${lightboxSrc}" style="max-width:95vw;max-height:92vh;object-fit:contain;border-radius:10px"/>
+    <button onclick="closeLightbox()" style="position:absolute;top:18px;right:20px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#e8eaf0;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:monospace">✕ Close</button>
+  </div>`:"";
+
+  // TOAST
+  const tc=toast.type==="error"?"#fc8181":toast.type==="success"?"#68d391":"#a78bfa";
+  const toastHtml=toast.msg?`<div style="position:fixed;top:18px;right:16px;z-index:9998;background:${tc}18;border:1px solid ${tc}66;border-radius:12px;padding:11px 18px;font-size:13px;font-family:monospace;color:${tc};box-shadow:0 8px 32px rgba(0,0,0,0.5);max-width:280px">${toast.msg}</div>`:"";
+
+  // HEADER
+  const navBtn=(label,v,icon)=>{const a=currentView===v;return`<button onclick="setView('${v}')" style="background:${a?"rgba(167,139,250,0.12)":"transparent"};border:${a?"1px solid rgba(167,139,250,0.3)":"1px solid transparent"};color:${a?"#a78bfa":"#6b7a99"};border-radius:9px;padding:8px 14px;cursor:pointer;font-size:12px;font-family:monospace;display:inline-flex;align-items:center;gap:6px;transition:all .15s;letter-spacing:.04em"><span style="font-size:13px">${icon}</span>${label}</button>`;};
+  const header=`<div style="border-bottom:1px solid rgba(255,255,255,0.06);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;background:rgba(8,12,18,0.97);position:sticky;top:0;z-index:100;gap:10px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:11px">
+      <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;font-family:monospace;box-shadow:0 0 14px rgba(167,139,250,0.4)">A</div>
+      <div><div style="font-family:monospace;font-weight:800;font-size:13px;letter-spacing:.08em;color:#e8eaf0">${JOURNAL_TITLE}</div><div style="font-size:10px;color:#6b7a99;font-family:monospace">${CONCEPT}</div></div>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap">${navBtn("Dashboard","dashboard","◈")}${navBtn("Log Trade","log","+")}${navBtn("History","history","≡")}${navBtn("AI Analysis","analysis","◎")}</div>
+  </div>`;
+
+  // ── DASHBOARD ────────────────────────────────────────────────────
+  let content="";
+  if(currentView==="dashboard"){
+    const recentRows=trades.slice(0,6).map(t=>{
+      const pn=parseFloat(t.pnl);
+      const hasImg=t.beforeImage||t.afterImage||t.mt5Image||t.setupImages?.length>0;
+      return`<div onclick="viewTrade(${t.id})" style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:11px;padding:12px 16px;margin-bottom:7px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span style="font-family:monospace;font-weight:800;font-size:14px">${t.pair}</span>
+          <span style="font-size:11px;color:${t.direction==="Long"?"#68d391":"#fc8181"};font-family:monospace;font-weight:700">${t.direction==="Long"?"▲":"▼"} ${t.direction}</span>
+          ${setupBadge(t.entrySetup)}
+          <span style="font-size:12px">${EMOTIONS.find(e=>e.label===t.emotion)?.emoji||""}</span>
+          ${t.daysHeld?`<span style="font-size:11px;color:#6b7a99;font-family:monospace">${t.daysHeld}d</span>`:""}
+          ${hasImg?`<span style="font-size:11px;color:#a78bfa">📷</span>`:""}
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;flex-shrink:0">
+          ${t.rrRisk?`<span style="font-size:11px;color:#a78bfa;font-family:monospace">R:${t.rrRisk}</span>`:""}
+          <span style="font-family:monospace;font-weight:800;font-size:14px;color:${t.result==="Win"||pn>0?"#68d391":t.result==="Loss"||pn<0?"#fc8181":"#6b7a99"}">${t.pnl!==""?fmtMoney(pn):t.result}</span>
+          <span style="font-size:11px;color:#6b7a99;font-family:monospace">${t.date}</span>
+        </div>
+      </div>`;
+    }).join("");
+
+    const aiFbHtml=(aiLoading||aiFeedback)?`<div style="background:linear-gradient(135deg,rgba(167,139,250,0.07),rgba(99,179,237,0.04));border:1px solid rgba(167,139,250,0.2);border-radius:16px;padding:22px;margin-bottom:22px">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
+        <div style="width:7px;height:7px;border-radius:50%;background:${aiLoading?"#f6ad55":"#a78bfa"};box-shadow:0 0 8px ${aiLoading?"#f6ad55":"#a78bfa"}"></div>
+        <span style="font-size:11px;font-weight:700;color:#a78bfa;font-family:monospace;letter-spacing:.1em">AI TRADE COACH · SLK FEEDBACK</span>
+      </div>
+      ${aiLoading?`<div style="color:#6b7a99;font-size:13px;font-family:monospace">Analysing your SLK entry…</div>`:`<div style="font-size:13px;color:#c8d0e0;line-height:1.8">${renderMd(aiFeedback)}</div>`}
+    </div>`:"";
+
+    content=`<div class="fadein">
+      <div style="margin-bottom:24px">
+        <div style="font-size:11px;color:#6b7a99;font-family:monospace;letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px">${todayStr()}</div>
+        <h1 style="font-size:24px;font-weight:800;color:#e8eaf0;letter-spacing:-.02em;margin-bottom:4px">${greet()}, <span style="background:linear-gradient(90deg,#a78bfa,#63b3ed);-webkit-background-clip:text;-webkit-text-fill-color:transparent">${TRADER_NAME}</span> 👋</h1>
+        <p style="color:#6b7a99;font-size:13px">${CONCEPT} · Swing Trader · ${trades.length} trade${trades.length!==1?"s":""} in journal</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px">
+        ${statCard("Total P&L",st.closed.length?fmtMoney(st.totalPnl):"—","",st.totalPnl>=0?"#68d391":"#fc8181",true)}
+        ${statCard("Win Rate",st.closed.length?`${st.winRate}%`:"—",`${st.wins.length}W · ${st.losses.length}L`,st.winRate>=55?"#68d391":st.winRate>=40?"#f6ad55":"#fc8181")}
+        ${statCard("Avg Win",st.wins.length?fmtMoney(st.avgWin):"—","","#68d391")}
+        ${statCard("Avg Loss",st.losses.length?fmtMoney(st.avgLoss):"—","","#fc8181")}
+        ${statCard("Actual R:R",st.rrRatio,`Planned: ${st.avgRRPlan}`,"#a78bfa")}
+        ${statCard("Win Streak",st.streak>0?`${st.streak} 🔥`:"0","","#f6ad55")}
+      </div>
+      ${aiFbHtml}
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <span style="font-size:14px;font-weight:700;color:#e8eaf0">Recent Trades</span>
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            <button onclick="exportToNotion()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);color:#a0aec0;border-radius:9px;padding:9px 16px;font-weight:700;font-family:monospace;font-size:11px;cursor:pointer;letter-spacing:.05em">📋 Export to Notion</button>
+            <button onclick="setView('log')" style="background:linear-gradient(135deg,#a78bfa,#7c3aed);border:none;color:#fff;border-radius:9px;padding:9px 18px;font-weight:700;font-family:monospace;font-size:12px;cursor:pointer;letter-spacing:.05em">+ LOG TRADE</button>
+          </div>
+        </div>
+        ${trades.length===0?`<div style="text-align:center;padding:50px 0;color:#6b7a99;border:1px dashed rgba(255,255,255,0.07);border-radius:14px"><div style="font-size:30px;margin-bottom:10px">📋</div><div style="font-weight:600;margin-bottom:4px">No trades yet</div><div style="font-size:12px">Log your first SLK trade to get started</div></div>`:recentRows}
+        ${trades.length>6?`<button onclick="setView('history')" style="background:transparent;border:none;color:#a78bfa;font-size:12px;font-family:monospace;cursor:pointer;padding:6px 0;letter-spacing:.05em">View all ${trades.length} trades →</button>`:""}
+      </div>
+    </div>`;
+  }
+
+  // ── LOG TRADE ─────────────────────────────────────────────────────
+  else if(currentView==="log"){
+    const pairList=PAIR_GROUPS.map(g=>{
+      const ps=g.pairs.filter(p=>!pairSearch||p.toLowerCase().includes(pairSearch.toLowerCase()));
+      if(!ps.length)return"";
+      return`<div><div style="padding:5px 11px;font-size:10px;color:#a78bfa;font-family:monospace;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.05)">${g.label}</div>${ps.map(p=>`<div onmousedown="setPair('${p}')" style="padding:8px 13px;font-size:13px;font-family:monospace;color:${currentForm.pair===p?"#a78bfa":"#c8d0e0"};cursor:pointer;background:${currentForm.pair===p?"rgba(167,139,250,0.1)":"transparent"}">${p}</div>`).join("")}</div>`;
+    }).join("");
+
+    const setupCards=ENTRY_SETUPS.map(es=>{
+      const active=currentForm.entrySetup===es.value;
+      const col=setupColor(es.value);
+      return`<button onclick="setSetup('${es.value}')" style="background:${active?col+"12":"rgba(255,255,255,0.02)"};border:1px solid ${active?col:"rgba(255,255,255,0.07)"};border-radius:10px;padding:11px 14px;cursor:pointer;text-align:left;transition:all .15s;width:100%">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><span style="font-size:15px;color:${active?col:"#6b7a99"}">${es.icon}</span><span style="font-size:12px;font-family:monospace;font-weight:700;color:${active?col:"#a0aec0"}">${es.value}</span></div>
+        <div style="font-size:11px;color:#6b7a99;line-height:1.4">${es.desc}</div>
+      </button>`;
+    }).join("");
+
+    const emotionBtns=EMOTIONS.map(e=>`<button onclick="setEmotion('${e.label}')" style="background:${currentForm.emotion===e.label?e.color+"18":"rgba(255,255,255,0.03)"};border:1px solid ${currentForm.emotion===e.label?e.color:"rgba(255,255,255,0.08)"};color:${currentForm.emotion===e.label?e.color:"#6b7a99"};border-radius:20px;padding:7px 14px;cursor:pointer;font-size:13px;font-family:monospace;display:inline-flex;align-items:center;gap:5px;transition:all .15s">${e.emoji} ${e.label}</button>`).join("");
+
+    const pnlColor=parseFloat(currentForm.pnl)>0?"#68d391":parseFloat(currentForm.pnl)<0?"#fc8181":"#6b7a99";
+
+    content=`<div class="fadein">
+      <div style="margin-bottom:22px"><h2 style="font-size:20px;font-weight:800;margin-bottom:4px">${editingId?"Edit Trade":"Log New Trade"}</h2><p style="color:#6b7a99;font-size:13px">Record every detail for accurate AI coaching.</p></div>
+
+      ${sectionBox("▸ Trade Identity",`
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
+          <div><label style="${lbl}">Date</label><input type="date" style="${inp}" value="${currentForm.date}" onchange="setField('date',this.value)"/></div>
+          <div style="position:relative">
+            <label style="${lbl}">Pair</label>
+            <input style="${inp}" placeholder="Search pair…" value="${pairSearch||currentForm.pair}" oninput="onPairSearch(this.value)" onfocus="onPairSearch('')" onblur="hidePairDrop()"/>
+            ${showPairDrop?`<div style="position:absolute;top:100%;left:0;right:0;background:#111827;border:1px solid rgba(167,139,250,0.3);border-radius:10px;max-height:220px;overflow-y:auto;z-index:200;box-shadow:0 16px 40px rgba(0,0,0,0.6)">${pairList}</div>`:""}
+          </div>
+          <div><label style="${lbl}">Direction</label><div style="display:flex;gap:7px">
+            <button onclick="setDirection('Long')" style="flex:1;padding:10px 0;border-radius:9px;border:1px solid ${currentForm.direction==="Long"?"#68d391":"rgba(255,255,255,0.09)"};background:${currentForm.direction==="Long"?"rgba(104,211,145,0.12)":"transparent"};color:${currentForm.direction==="Long"?"#68d391":"#6b7a99"};cursor:pointer;font-family:monospace;font-weight:700;font-size:13px">▲ Long</button>
+            <button onclick="setDirection('Short')" style="flex:1;padding:10px 0;border-radius:9px;border:1px solid ${currentForm.direction==="Short"?"#fc8181":"rgba(255,255,255,0.09)"};background:${currentForm.direction==="Short"?"rgba(252,129,129,0.12)":"transparent"};color:${currentForm.direction==="Short"?"#fc8181":"#6b7a99"};cursor:pointer;font-family:monospace;font-weight:700;font-size:13px">▼ Short</button>
+          </div></div>
+          <div><label style="${lbl}">Session</label><select style="${inp}" onchange="setField('session',this.value)">${SESSIONS.map(s=>`<option ${currentForm.session===s?"selected":""}>${s}</option>`).join("")}</select></div>
+          <div><label style="${lbl}">Result</label><select style="${inp}" onchange="setField('result',this.value)">${RESULTS.map(r=>`<option ${currentForm.result===r?"selected":""}>${r}</option>`).join("")}</select></div>
+          <div><label style="${lbl}">Days Held</label><input type="number" min="0" step="1" placeholder="e.g. 3" style="${inp}" value="${currentForm.daysHeld}" oninput="setField('daysHeld',this.value)"/></div>
+        </div>
+      `)}
+
+      ${sectionBox("▸ SLK Analysis — Entry Setup Type & Timeframes",`
+        <div style="margin-bottom:16px">
+          <label style="${lbl}">Entry Setup Type</label>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:9px">${setupCards}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div><label style="${lbl}">HTF Context Timeframe</label><select style="${inp}" onchange="setField('htfTimeframe',this.value)">${TIMEFRAMES.map(t=>`<option ${currentForm.htfTimeframe===t?"selected":""}>${t}</option>`).join("")}</select></div>
+          <div><label style="${lbl}">Entry Timeframe</label><select style="${inp}" onchange="setField('entryTimeframe',this.value)">${TIMEFRAMES.map(t=>`<option ${currentForm.entryTimeframe===t?"selected":""}>${t}</option>`).join("")}</select></div>
+        </div>
+      `)}
+
+      ${sectionBox("▸ Price & Risk",`
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px">
+          <div><label style="${lbl}">Entry Price</label><input type="number" step="any" placeholder="e.g. 1.08500" style="${inp}" value="${currentForm.entryPrice}" oninput="setField('entryPrice',this.value)"/></div>
+          <div><label style="${lbl}">Exit Price</label><input type="number" step="any" placeholder="Blank if running" style="${inp}" value="${currentForm.exitPrice}" oninput="setField('exitPrice',this.value)"/></div>
+          <div><label style="${lbl}">Lot Size</label><input type="number" step="any" placeholder="e.g. 0.10" style="${inp}" value="${currentForm.lotSize}" oninput="setField('lotSize',this.value)"/></div>
+          <div><label style="${lbl}">Stop Loss</label><input type="number" step="any" placeholder="e.g. 1.08100" style="${inp}" value="${currentForm.stopLoss}" oninput="setField('stopLoss',this.value)"/></div>
+          <div><label style="${lbl}">Take Profit</label><input type="number" step="any" placeholder="e.g. 1.09500" style="${inp}" value="${currentForm.takeProfit}" oninput="setField('takeProfit',this.value)"/></div>
+          <div><label style="${lbl}">P&L (auto)</label><div style="${inp};display:flex;align-items:center;color:${pnlColor};font-weight:700">${currentForm.pnl!==""?fmtMoney(parseFloat(currentForm.pnl)):"Auto-calculated"}</div></div>
+          <div><label style="${lbl}">Planned R:R</label><div style="${inp};display:flex;align-items:center;color:#a78bfa;font-weight:700">${currentForm.rrRisk||"—"}</div></div>
+          <div><label style="${lbl}">Actual R:R</label><div style="${inp};display:flex;align-items:center;color:#63b3ed;font-weight:700">${currentForm.rrActual||"—"}</div></div>
+        </div>
+      `)}
+
+      ${sectionBox("▸ Chart Screenshots — Before, After & MT5 Execution",`
+        <p style="margin:0 0 14px;font-size:12px;color:#6b7a99">Tap any zone to open your phone gallery. Tap an uploaded image to expand it.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">
+          ${imgZoneHtml("beforeImage","Before — Pre-Entry","Chart showing your setup before entering","#63b3ed",currentForm.beforeImage)}
+          ${imgZoneHtml("afterImage","After — Trade Result","Chart showing how the trade played out","#68d391",currentForm.afterImage)}
+          ${imgZoneHtml("mt5Image","MT5 Execution","Screenshot of your MT5 order confirmation","#f6ad55",currentForm.mt5Image)}
+        </div>
+      `)}
+
+      ${sectionBox("▸ Setup Formation Screenshots",`
+        <p style="margin:0 0 12px;font-size:12px;color:#6b7a99">Add multiple screenshots as the setup formed. Tap to open your gallery.</p>
+        ${setupImagesHtml()}
+      `)}
+
+      ${sectionBox("▸ Psychology & Notes",`
+        <div style="margin-bottom:14px">
+          <label style="${lbl}">Emotional State at Entry</label>
+          <div style="display:flex;flex-wrap:wrap;gap:7px">${emotionBtns}</div>
+        </div>
+        <div style="display:grid;gap:12px">
+          <div><label style="${lbl}">Trade Rationale</label><textarea rows="3" placeholder="Why did you take this trade? Describe the structure, liquidity, and entry setup." style="${inp};resize:vertical" onchange="setField('rationale',this.value)">${currentForm.rationale}</textarea></div>
+          <div><label style="${lbl}">Trade Management Notes</label><textarea rows="3" placeholder="Partial closes, trailing SL, re-entries, adjustments?" style="${inp};resize:vertical" onchange="setField('tradeManagement',this.value)">${currentForm.tradeManagement}</textarea></div>
+          <div><label style="${lbl}">Mistakes Made</label><textarea rows="2" placeholder="Rule breaks, emotional decisions, premature exits?" style="${inp};resize:vertical" onchange="setField('mistakes',this.value)">${currentForm.mistakes}</textarea></div>
+          <div><label style="${lbl}">Lessons Learned</label><textarea rows="2" placeholder="What will you apply differently next time?" style="${inp};resize:vertical" onchange="setField('lessons',this.value)">${currentForm.lessons}</textarea></div>
+          <div><label style="${lbl}">Tags (comma separated)</label><input type="text" placeholder="e.g. patience, news-week, OCL-retest" style="${inp}" value="${currentForm.tags}" oninput="setField('tags',this.value)"/></div>
+        </div>
+      `)}
+
+      <div style="display:flex;gap:9px;margin-top:4px">
+        <button onclick="submitTrade()" style="background:linear-gradient(135deg,#a78bfa,#7c3aed);border:none;color:#fff;border-radius:10px;padding:12px 24px;font-weight:700;font-family:monospace;font-size:12px;cursor:pointer;letter-spacing:.06em">${editingId?"UPDATE TRADE":"SAVE & GET AI FEEDBACK"}</button>
+        <button onclick="cancelLog()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#a0aec0;border-radius:10px;padding:12px 20px;font-weight:700;font-family:monospace;font-size:12px;cursor:pointer">Cancel</button>
+      </div>
+    </div>`;
+  }
+
+  // ── HISTORY ───────────────────────────────────────────────────────
+  else if(currentView==="history"){
+    if(selectedTradeId){
+      const t=trades.find(x=>x.id===selectedTradeId);
+      if(!t){selectedTradeId=null;render();return;}
+      const rc=resultColor(t.result);
+      const hasImg=t.beforeImage||t.afterImage||t.mt5Image||t.setupImages?.length>0;
+      const imgSection=hasImg?`<div style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.06);padding-top:20px">
+        ${(t.beforeImage||t.afterImage||t.mt5Image)?`<div style="margin-bottom:18px"><div style="font-size:10px;color:#6b7a99;font-family:monospace;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Chart Screenshots</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+            ${t.beforeImage?`<div style="border:1px solid rgba(99,179,237,0.2);border-radius:10px;overflow:hidden;cursor:zoom-in" onclick="openTradeLightbox('${t.beforeImage}')"><div style="padding:5px 10px;background:rgba(99,179,237,0.08);font-size:10px;font-family:monospace;color:#63b3ed">BEFORE — PRE-ENTRY</div><img src="${t.beforeImage}" style="width:100%;max-height:200px;object-fit:contain;display:block;background:#0a0f18"/></div>`:""}
+            ${t.afterImage?`<div style="border:1px solid rgba(104,211,145,0.2);border-radius:10px;overflow:hidden;cursor:zoom-in" onclick="openTradeLightbox('${t.afterImage}')"><div style="padding:5px 10px;background:rgba(104,211,145,0.08);font-size:10px;font-family:monospace;color:#68d391">AFTER — RESULT</div><img src="${t.afterImage}" style="width:100%;max-height:200px;object-fit:contain;display:block;background:#0a0f18"/></div>`:""}
+            ${t.mt5Image?`<div style="border:1px solid rgba(246,173,85,0.2);border-radius:10px;overflow:hidden;cursor:zoom-in" onclick="openTradeLightbox('${t.mt5Image}')"><div style="padding:5px 10px;background:rgba(246,173,85,0.08);font-size:10px;font-family:monospace;color:#f6ad55">MT5 EXECUTION</div><img src="${t.mt5Image}" style="width:100%;max-height:200px;object-fit:contain;display:block;background:#0a0f18"/></div>`:""}
+          </div></div>`:""}
+        ${t.setupImages?.length?`<div><div style="font-size:10px;color:#6b7a99;font-family:monospace;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px">Setup Formation (${t.setupImages.length})</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:9px">
+            ${t.setupImages.map((img,i)=>`<div style="border:1px solid rgba(167,139,250,0.2);border-radius:9px;overflow:hidden;cursor:zoom-in" onclick="openTradeLightbox('${img.dataUrl}')">
+              <img src="${img.dataUrl}" style="width:100%;max-height:170px;object-fit:contain;display:block;background:#0a0f18"/>
+              ${img.caption?`<div style="padding:5px 9px;font-size:11px;color:#a0aec0;font-family:monospace;background:rgba(167,139,250,0.05)">${img.caption}</div>`:""}
+            </div>`).join("")}
+          </div></div>`:""}
+      </div>`:"";
+
+      const fields=[["Date",t.date],["Session",t.session],["HTF TF",t.htfTimeframe],["Entry TF",t.entryTimeframe],["Entry",t.entryPrice],["Exit",t.exitPrice||"Running"],["Lot",t.lotSize],["SL",t.stopLoss||"—"],["TP",t.takeProfit||"—"],["P&L",t.pnl?fmtMoney(parseFloat(t.pnl)):"—"],["Planned R:R",t.rrRisk||"—"],["Actual R:R",t.rrActual||"—"]];
+
+      content=`<div class="fadein">
+        <button onclick="backToHistory()" style="background:transparent;border:none;color:#a78bfa;font-size:12px;font-family:monospace;cursor:pointer;margin-bottom:18px;letter-spacing:.05em">← Back to History</button>
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:24px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;flex-wrap:wrap">
+                <span style="font-family:monospace;font-weight:800;font-size:20px">${t.pair}</span>
+                <span style="font-size:13px;color:${t.direction==="Long"?"#68d391":"#fc8181"};font-weight:700;font-family:monospace">${t.direction==="Long"?"▲":"▼"} ${t.direction}</span>
+                ${badge(t.result,rc)}
+              </div>
+              <div style="display:flex;gap:7px;flex-wrap:wrap">${setupBadge(t.entrySetup)}${t.daysHeld?badge(`${t.daysHeld} days held`,"#f6ad55","rgba(246,173,85,0.1)"):""}</div>
+            </div>
+            <div style="display:flex;gap:7px">
+              <button onclick="editTrade(${t.id})" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#a0aec0;border-radius:9px;padding:8px 16px;font-family:monospace;font-size:12px;cursor:pointer;font-weight:700">Edit</button>
+              <button onclick="deleteTrade(${t.id})" style="background:rgba(252,129,129,0.1);border:1px solid rgba(252,129,129,0.3);color:#fc8181;border-radius:9px;padding:8px 16px;font-family:monospace;font-size:12px;cursor:pointer;font-weight:700">Delete</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px;margin-bottom:18px">
+            ${fields.map(([k,v])=>`<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:9px 12px"><div style="font-size:10px;color:#6b7a99;font-family:monospace;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">${k}</div><div style="font-family:monospace;font-size:13px;color:${k==="P&L"?(parseFloat(t.pnl)>=0?"#68d391":"#fc8181"):k.includes("R:R")?"#a78bfa":"#e8eaf0"};font-weight:700">${v}</div></div>`).join("")}
+          </div>
+          <div style="margin-bottom:12px"><div style="font-size:10px;color:#6b7a99;font-family:monospace;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Emotion</div><div style="font-size:14px">${EMOTIONS.find(e=>e.label===t.emotion)?.emoji||""} ${t.emotion}</div></div>
+          ${[["Trade Rationale",t.rationale,"#c8d0e0"],["Trade Management",t.tradeManagement,"#c8d0e0"],["Mistakes",t.mistakes,"#fc8181"],["Lessons",t.lessons,"#68d391"]].filter(x=>x[1]).map(([l,v,c])=>`<div style="margin-bottom:12px"><div style="font-size:10px;color:#6b7a99;font-family:monospace;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">${l}</div><div style="font-size:13px;color:${c};line-height:1.7">${v}</div></div>`).join("")}
+          ${t.tags?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px">${t.tags.split(",").map(tg=>badge(tg.trim(),"#63b3ed","rgba(99,179,237,0.1)")).join("")}</div>`:""}
+          ${imgSection}
+        </div>
+      </div>`;
+    } else {
+      const rows=filtered.map(t=>{
+        const pn=parseFloat(t.pnl);const rc=resultColor(t.result);
+        const hasImg=t.beforeImage||t.afterImage||t.mt5Image||t.setupImages?.length>0;
+        return`<div onclick="viewTrade(${t.id})" style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:11px;padding:12px 16px;margin-bottom:7px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+            <span style="font-family:monospace;font-weight:800;font-size:13px">${t.pair}</span>
+            <span style="font-size:11px;color:${t.direction==="Long"?"#68d391":"#fc8181"};font-family:monospace;font-weight:700">${t.direction==="Long"?"▲":"▼"}</span>
+            ${setupBadge(t.entrySetup)}
+            <span style="font-size:12px">${EMOTIONS.find(e=>e.label===t.emotion)?.emoji||""}</span>
+            ${t.daysHeld?`<span style="font-size:11px;color:#6b7a99;font-family:monospace">${t.daysHeld}d</span>`:""}
+            ${badge(t.result,rc,rc+"15")}
+            ${hasImg?`<span style="font-size:11px;color:#a78bfa">📷</span>`:""}
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;flex-shrink:0">
+            ${t.rrRisk?`<span style="font-size:11px;color:#a78bfa;font-family:monospace">R:${t.rrRisk}</span>`:""}
+            <span style="font-family:monospace;font-weight:800;font-size:13px;color:${pn>0?"#68d391":pn<0?"#fc8181":"#6b7a99"}">${t.pnl!==""?fmtMoney(pn):"—"}</span>
+            <span style="font-size:11px;color:#6b7a99;font-family:monospace">${t.date}</span>
+          </div>
+        </div>`;
+      }).join("");
+
+      content=`<div class="fadein">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:9px">
+          <h2 style="font-size:20px;font-weight:800">Trade History</h2>
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            <select style="${inp};width:auto;font-size:12px" onchange="filterPair=this.value;render()"><option value="All">All Pairs</option>${[...new Set(trades.map(t=>t.pair))].map(p=>`<option ${filterPair===p?"selected":""}>${p}</option>`).join("")}</select>
+            <select style="${inp};width:auto;font-size:12px" onchange="filterResult=this.value;render()"><option value="All">All Results</option>${RESULTS.map(r=>`<option ${filterResult===r?"selected":""}>${r}</option>`).join("")}</select>
+            <select style="${inp};width:auto;font-size:12px" onchange="filterSetup=this.value;render()""><option value="All">All Setups</option>${ENTRY_SETUPS.map(s=>`<option ${filterSetup===s.value?"selected":""}>${s.value}</option>`).join("")}</select>
+            <button onclick="exportToNotion()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);color:#a0aec0;border-radius:9px;padding:9px 14px;font-weight:700;font-family:monospace;font-size:11px;cursor:pointer">📋 Export</button>
+          </div>
+        </div>
+        ${filtered.length===0?`<div style="text-align:center;padding:44px;color:#6b7a99;border:1px dashed rgba(255,255,255,0.07);border-radius:14px">No trades match your filters.</div>`:rows}
+      </div>`;
+    }
+  }
+
+  // ── AI ANALYSIS ───────────────────────────────────────────────────
+  else if(currentView==="analysis"){
+    content=`<div class="fadein">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;flex-wrap:wrap;gap:10px">
+        <div><h2 style="font-size:20px;font-weight:800;margin-bottom:4px">AI Journal Analysis</h2><p style="color:#6b7a99;font-size:13px">Pattern analysis across ${trades.length} trades — SLK focused</p></div>
+        <button onclick="runAnalysis()" ${analysisLoading?"disabled":""} style="background:linear-gradient(135deg,#a78bfa,#7c3aed);border:none;color:#fff;border-radius:10px;padding:11px 22px;font-weight:700;font-family:monospace;font-size:12px;cursor:pointer;letter-spacing:.06em;opacity:${analysisLoading?0.6:1}">
+          ${analysisLoading?"ANALYSING…":"◎ RUN FULL ANALYSIS"}
+        </button>
+      </div>
+      ${!analysis&&!analysisLoading?`<div style="text-align:center;padding:68px 0;color:#6b7a99;border:1px dashed rgba(167,139,250,0.2);border-radius:16px"><div style="font-size:38px;margin-bottom:12px">◎</div><div style="font-size:14px;font-weight:600;margin-bottom:5px;color:#a0aec0">Ready to analyse ${TRADER_NAME}'s journal</div><div style="font-size:12px">Minimum 2 trades required · Up to 40 most recent analysed</div></div>`:""}
+      ${analysisLoading?`<div style="text-align:center;padding:68px 0;color:#6b7a99"><div style="width:38px;height:38px;border-radius:50%;border:3px solid rgba(167,139,250,0.2);border-top:3px solid #a78bfa;margin:0 auto 18px;animation:spin .8s linear infinite"></div><div style="font-size:14px">Analysing ${trades.length} trades…</div></div>`:""}
+      ${analysis&&!analysisLoading?`<div style="background:linear-gradient(135deg,rgba(167,139,250,0.05),rgba(99,179,237,0.03));border:1px solid rgba(167,139,250,0.15);border-radius:16px;padding:26px">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:16px">
+          <div style="width:7px;height:7px;border-radius:50%;background:#a78bfa;box-shadow:0 0 10px #a78bfa"></div>
+          <span style="font-size:11px;font-weight:700;color:#a78bfa;font-family:monospace;letter-spacing:.1em">AI COACH · ${TRADER_NAME.toUpperCase()}'S SLK ANALYSIS</span>
+        </div>
+        <div style="font-size:13px;color:#c8d0e0;line-height:1.9">${renderMd(analysis)}</div>
+      </div>`:""}
+    </div>`;
+  }
+
+  app.innerHTML=`
+    ${lbHtml}
+    ${toastHtml}
+    ${header}
+    <div style="max-width:1100px;margin:0 auto;padding:24px 16px">${content}</div>
+  `;
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+loadTrades();
+render();
+
+// drag-drop on whole page for log view
+document.addEventListener("dragover",e=>e.preventDefault());
+
+// ── PWA ───────────────────────────────────────────────────────────
+// Inline manifest (no separate file needed)
+const manifestData = {
+  name: "Aideyan's SLK Journal",
+  short_name: "SLK Journal",
+  description: "Aideyan's personal SLK swing trading journal — Structure, Liquidity, Key Levels",
+  start_url: "./",
+  display: "standalone",
+  background_color: "#080c12",
+  theme_color: "#a78bfa",
+  orientation: "portrait-primary",
+  categories: ["finance", "productivity"],
+  icons: [
+    { src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEwMCIgZmlsbD0idXJsKCNnKSIvPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2E3OGJmYSIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzdjM2FlZCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjx0ZXh0IHg9IjI1NiIgeT0iMzQwIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjMwMCIgZm9udC13ZWlnaHQ9IjkwMCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkE8L3RleHQ+PC9zdmc+", sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }
+  ]
+};
+const manifestBlob = new Blob([JSON.stringify(manifestData)], {type:'application/json'});
+const manifestURL = URL.createObjectURL(manifestBlob);
+document.getElementById('pwa-manifest').href = manifestURL;
+
+// Service Worker (inline via blob)
+const swCode = `
+const CACHE = 'slk-journal-v1';
+self.addEventListener('install', e => { self.skipWaiting(); });
+self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(
+    caches.open(CACHE).then(cache =>
+      cache.match(e.request).then(cached => {
+        const fresh = fetch(e.request).then(res => { cache.put(e.request, res.clone()); return res; }).catch(() => cached);
+        return cached || fresh;
+      })
+    )
+  );
+});
+`;
+if ('serviceWorker' in navigator) {
+  const swBlob = new Blob([swCode], {type:'text/javascript'});
+  const swURL = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swURL, {scope:'./'}).then(() => {
+    console.log('SLK Journal SW registered');
+  }).catch(e => console.log('SW error:', e));
+}
+
+// Install prompt
+let pwaPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  pwaPrompt = e;
+  const dismissed = localStorage.getItem('slk-pwa-dismissed');
+  if (!dismissed) document.getElementById('pwa-install-banner').style.display = 'block';
+});
+function pwaInstall() {
+  if (!pwaPrompt) return;
+  pwaPrompt.prompt();
+  pwaPrompt.userChoice.then(r => {
+    if (r.outcome === 'accepted') {
+      document.getElementById('pwa-install-banner').style.display = 'none';
+      showToast('App installed! Find it on your home screen.', 'success');
+    }
+    pwaPrompt = null;
+  });
+}
+function pwaDismiss() {
+  document.getElementById('pwa-install-banner').style.display = 'none';
+  localStorage.setItem('slk-pwa-dismissed', '1');
+}
+window.addEventListener('appinstalled', () => {
+  document.getElementById('pwa-install-banner').style.display = 'none';
+  showToast('Aideyan\'s SLK Journal installed!', 'success');
+});
+
+// Offline detection
+function updateOnlineStatus() {
+  document.getElementById('pwa-offline-bar').style.display = navigator.onLine ? 'none' : 'block';
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// Splash screen hide
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const splash = document.getElementById('pwa-splash');
+    if (splash) { splash.classList.add('hidden'); setTimeout(() => splash.remove(), 500); }
+  }, 1200);
+});
+
+</script>
+</body>
+</html>
