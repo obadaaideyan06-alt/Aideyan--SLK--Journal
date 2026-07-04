@@ -121,8 +121,6 @@ let toastTimer=null;
 let filterPair="All";
 let filterResult="All";
 let filterSetup="All";
-let pairSearch="";
-let showPairDrop=false;
 let lightboxSrc=null;
 
 function emptyTrade(){
@@ -373,9 +371,6 @@ function setDirection(d){setField("direction",d);}
 function setEmotion(l){setField("emotion",l);}
 function setSetup(v){setField("entrySetup",v);}
 function setPair(p){currentForm.pair=p;pairSearch="";showPairDrop=false;const{pnl,rrRisk,rrActual}=calcPnL(currentForm);currentForm.pnl=pnl;currentForm.rrRisk=rrRisk;currentForm.rrActual=rrActual;render();}
-function onPairSearch(v){pairSearch=v;showPairDrop=true;render();}
-function togglePairDrop(){showPairDrop=!showPairDrop;render();}
-function hidePairDrop(){setTimeout(()=>{showPairDrop=false;render();},180);}
 
 async function submitTrade(){
   if(!currentForm.pair||!currentForm.entryPrice||!currentForm.date){showToast("Fill in Date, Pair and Entry Price.","error");return;}
@@ -507,11 +502,6 @@ function render(){
 
   // ── LOG TRADE ─────────────────────────────────────────────────────
   else if(currentView==="log"){
-    const pairList=PAIR_GROUPS.map(g=>{
-      const ps=g.pairs.filter(p=>!pairSearch||p.toLowerCase().includes(pairSearch.toLowerCase()));
-      if(!ps.length)return"";
-      return`<div><div style="padding:5px 11px;font-size:10px;color:#a78bfa;font-family:monospace;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.05)">${g.label}</div>${ps.map(p=>`<div onmousedown="setPair('${p}')" style="padding:8px 13px;font-size:13px;font-family:monospace;color:${currentForm.pair===p?"#a78bfa":"#c8d0e0"};cursor:pointer;background:${currentForm.pair===p?"rgba(167,139,250,0.1)":"transparent"}">${p}</div>`).join("")}</div>`;
-    }).join("");
 
     const setupCards=ENTRY_SETUPS.map(es=>{
       const active=currentForm.entrySetup===es.value;
@@ -532,10 +522,11 @@ function render(){
       ${sectionBox("▸ Trade Identity",`
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
           <div><label style="${lbl}">Date</label><input type="date" style="${inp}" value="${currentForm.date}" onchange="setField('date',this.value)"/></div>
-          <div style="position:relative">
+          <div>
             <label style="${lbl}">Pair</label>
-            <input style="${inp}" placeholder="Search pair…" value="${pairSearch||currentForm.pair}" oninput="onPairSearch(this.value)" onfocus="onPairSearch('')" onblur="hidePairDrop()"/>
-            ${showPairDrop?`<div style="position:absolute;top:100%;left:0;right:0;background:#111827;border:1px solid rgba(167,139,250,0.3);border-radius:10px;max-height:220px;overflow-y:auto;z-index:200;box-shadow:0 16px 40px rgba(0,0,0,0.6)">${pairList}</div>`:""}
+            <select style="${inp}" onchange="setField('pair',this.value)">
+              ${PAIR_GROUPS.map(g=>`<optgroup label="${g.label}">${g.pairs.map(p=>`<option value="${p}" ${currentForm.pair===p?'selected':''}>${p}</option>`).join('')}</optgroup>`).join('')}
+            </select>
           </div>
           <div><label style="${lbl}">Direction</label><div style="display:flex;gap:7px">
             <button onclick="setDirection('Long')" style="flex:1;padding:10px 0;border-radius:9px;border:1px solid ${currentForm.direction==="Long"?"#68d391":"rgba(255,255,255,0.09)"};background:${currentForm.direction==="Long"?"rgba(104,211,145,0.12)":"transparent"};color:${currentForm.direction==="Long"?"#68d391":"#6b7a99"};cursor:pointer;font-family:monospace;font-weight:700;font-size:13px">▲ Long</button>
